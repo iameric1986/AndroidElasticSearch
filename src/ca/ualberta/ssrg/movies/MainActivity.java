@@ -8,10 +8,12 @@ import android.content.Context;
 import android.content.Intent;
 import android.os.Bundle;
 import android.view.View;
+import android.view.View.OnClickListener;
 import android.widget.AdapterView;
 import android.widget.AdapterView.OnItemClickListener;
 import android.widget.AdapterView.OnItemLongClickListener;
 import android.widget.ArrayAdapter;
+import android.widget.Button;
 import android.widget.EditText;
 import android.widget.ListView;
 import android.widget.Toast;
@@ -78,7 +80,9 @@ public class MainActivity extends Activity {
 
 				return true;
 			}
+		
 		});
+	
 	}
 
 	@Override
@@ -87,6 +91,11 @@ public class MainActivity extends Activity {
 
 		// Refresh the list when visible
 		// TODO: Search all
+		movies.clear();
+		Thread thread = new SearchThread("");
+		thread.start();
+		// Searching has to be done on the main thread, not from the UI thread.
+		//movieManager.searchMovies("", null); // Empty to get everything from elastic search.  Null to specify no field.
 		
 	}
 
@@ -98,8 +107,13 @@ public class MainActivity extends Activity {
 		movies.clear();
 
 		// TODO: Extract search query from text view
+		EditText textBox = (EditText) findViewById(R.id.editText1);
+		String searchString = textBox.getText().toString();
+		//Toast.makeText(this, searchString, Toast.LENGTH_SHORT).show();
 		
 		// TODO: Run the search thread
+		Thread thread = new SearchThread(searchString);
+		thread.start();
 		
 	}
 	
@@ -123,9 +137,26 @@ public class MainActivity extends Activity {
 		startActivity(intent);
 	}
 
-
+	/**
+	 * Use to make searching run on the main thread
+	 * @author ec10
+	 *
+	 */
 	class SearchThread extends Thread {
 		// TODO: Implement search thread
+		private String search;
+		
+		public SearchThread(String s) {
+			search = s;
+		}
+		
+		@Override
+		public void run() {
+			movies.clear();
+			movies.addAll(movieManager.searchMovies(search, null));
+			
+			runOnUiThread(doUpdateGUIList);
+		}
 		
 	}
 

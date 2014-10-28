@@ -9,6 +9,7 @@ import java.util.ArrayList;
 import java.util.List;
 
 import org.apache.http.HttpResponse;
+import org.apache.http.client.ClientProtocolException;
 import org.apache.http.client.HttpClient;
 import org.apache.http.client.methods.HttpDelete;
 import org.apache.http.client.methods.HttpGet;
@@ -24,7 +25,13 @@ import ca.ualberta.ssrg.movies.es.data.SimpleSearchCommand;
 
 import com.google.gson.Gson;
 import com.google.gson.reflect.TypeToken;
-
+// Steps:
+// 1. Create HTTP client
+// 2. Create the request (POST, PUT, DELETE, GET)
+// 3. Create and attach entity to the request
+// 4. Execute the request with the HTTP client
+// 5. When the response returns, parse the response
+// joelabrahamsson.com/elasticsearch-101/
 public class ESMovieManager implements IMovieManager {
 
 	private static final String SEARCH_URL = "http://cmput301.softwareprocess.es:8080/testing/movie/_search";
@@ -42,8 +49,8 @@ public class ESMovieManager implements IMovieManager {
 	 */
 	public Movie getMovie(int id) {
 
-		HttpClient httpClient = new DefaultHttpClient();
-		HttpGet httpGet = new HttpGet(RESOURCE_URL + id);
+		HttpClient httpClient = new DefaultHttpClient(); // Creates a HTTP client
+		HttpGet httpGet = new HttpGet(RESOURCE_URL + id); // Request of type "get"
 
 		HttpResponse response;
 
@@ -69,6 +76,39 @@ public class ESMovieManager implements IMovieManager {
 		List<Movie> result = new ArrayList<Movie>();
 
 		// TODO: Implement search movies using ElasticSearch
+		if (searchString.equals("") || searchString == null) {
+			searchString = "*"; // Wild card symbol in elastic search
+		}
+		
+		HttpClient httpClient = new DefaultHttpClient();
+		
+		try {
+			HttpPost searchRequest = createSearchRequest(searchString, field);
+			HttpResponse response = httpClient.execute(searchRequest);
+			String status = response.getStatusLine().toString();
+			Log.i(TAG, status);
+			
+			SearchResponse<Movie> esResponse = parseSearchResponse(response);
+			
+			Hits<Movie> hits = esResponse.getHits();
+			
+			if (hits != null) {
+				if (hits.getHits() != null) {
+					for (SearchHit<Movie> sesr : hits.getHits()) {
+						result.add(sesr.getSource());
+					}
+				}
+			}
+			
+		} catch (UnsupportedEncodingException e) {
+			e.printStackTrace();
+		} catch (ClientProtocolException e) {
+			// TODO Auto-generated catch block
+			e.printStackTrace();
+		} catch (IOException e) {
+			// TODO Auto-generated catch block
+			e.printStackTrace();
+		}
 		
 		return result;
 	}
@@ -127,7 +167,7 @@ public class ESMovieManager implements IMovieManager {
 			fields[0] = field;
 		}
 		
-		SimpleSearchCommand command = new SimpleSearchCommand(searchString,	fields);
+		SimpleSearchCommand command = new SimpleSearchCommand(searchString,	fields); // Searches and returns the ElasticSearch document
 		
 		String query = command.getJsonCommand();
 		Log.i(TAG, "Json command: " + query);
@@ -135,7 +175,7 @@ public class ESMovieManager implements IMovieManager {
 		StringEntity stringEntity;
 		stringEntity = new StringEntity(query);
 
-		searchRequest.setHeader("Accept", "application/json");
+		searchRequest.setHeader("Accept", "application/json"); // Sending json document
 		searchRequest.setEntity(stringEntity);
 
 		return searchRequest;
